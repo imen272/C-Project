@@ -11,29 +11,38 @@
 #include <fstream>
 #include "debug.h"
 
-Univers::Univers(int nb,int dimension, vector<double> ld, double rcut): nb(nb),dimension(dimension), ld(ld), rcut(rcut) {
+Univers::Univers(int nb, int dimension, vector<double> ld, double rcut)
+    : nb(nb), dimension(dimension), ld(ld), rcut(rcut) {
     ncd.resize(dimension);
     int totalCells = 1;
 
-    // Calcul des ncd et Taille totale de la grille
+    // Calcul des ncd et taille totale de la grille
     for (int i = 0; i < dimension; i++) {
         ncd[i] = static_cast<int>(ld[i] / rcut);
         totalCells *= ncd[i];
-
     }
 
     grille.resize(totalCells);
 
-    // Génération aléatoire des particules
-    std::random_device rd;
-    std::mt19937 mt(rd());
-    //std::uniform_real_distribution<double> id(0.0,10000);
-    for (int i = 0; i < nb; i++) {
-        std::vector<double> pos(dimension);
+    // Distance minimale entre les particules et les bords de la grille
+    double marge = rcut / 2.0;
 
+    // Placement des particules
+    for (int i = 0; i < nb; i++) {
+        vector<double> pos(dimension);
+
+        //les coordonnées de la particule de manière uniforme avec marges
         for (int d = 0; d < dimension; d++) {
-            uniform_real_distribution<double> dist(0.0, ld[d]); // Distribution uniforme entre 0 et ld[i]{
-            pos[d] = dist(mt); // Position aléatoire dans [0, ld[d]]
+            // Nombre de particules par dimension
+            int nbParticulesParDimension = static_cast<int>(pow(nb, 1.0 / dimension));
+
+            //l'indice de la particule
+            int indice = (i / static_cast<int>(pow(nbParticulesParDimension, d))) % nbParticulesParDimension;
+
+            // position de la particule
+            double espaceDisponible = ld[d] - 2 * marge; 
+            double pas = espaceDisponible / (nbParticulesParDimension - 1); // Distance entre les particules
+            pos[d] = marge + indice * pas; //position de la particule
         }
 
         Vecteur position(
@@ -42,23 +51,24 @@ Univers::Univers(int nb,int dimension, vector<double> ld, double rcut): nb(nb),d
             (dimension > 2) ? pos[2] : 0.0
         );
 
-        Particule particule(i,position);
+        //Création de la particule
+        Particule particule(i, position);
         particule.afficher();
-        // Déterminer la cellule de la grille où placer la particule
-        std::vector<int> cellCoords(dimension);
+
+        //Déterminer la cellule de la grille où placer la particule
+        vector<int> cellCoords(dimension);
         for (int d = 0; d < dimension; d++) {
             cellCoords[d] = static_cast<int>(pos[d] / rcut);
         }
-        
+
         int cellIndex = getIndice(cellCoords);
         grille[cellIndex].particules.push_back(particule);
     }
-    /*for (size_t i = 0; i < grille.size(); i++) {
-        DEBUG_COUT( "Cellule " << i << " contient " << grille[i].particules.size() << " particules." << endl);
-    }*/
-    
+
+    //Initialiser les cellules voisines
     initialiserCellulesVoisines();
-};
+}
+
 
 
 //Nouveau constructeur pour la collision des deux objets
@@ -383,69 +393,75 @@ void Univers::etatUnivers(double dt,double sigma, double epsilon,double t_end){
 
 
 void Univers::sauvegarderVTK(const std::string& nomFichier) const {
-  string cheminComplet = string(getenv("HOME")) + "/TP_errabhii_madakcha/" +  nomFichier;
+    string cheminComplet = string(getenv("HOME")) + "/TP_errabhii_madakcha/" + nomFichier;
     cout << "Chemin du fichier : " << cheminComplet << endl;
+    
     ofstream fichier(cheminComplet);
     if (!fichier.is_open()) {
-        std::cerr << "Erreur : Impossible d'ouvrir le fichier " << nomFichier << " pour écriture." << std::endl;
+        cerr << "Erreur : Impossible d'ouvrir le fichier " << cheminComplet << endl;
         return;
     }
 
-    //En-tête du VTK
-    fichier << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
-    fichier << "  <UnstructuredGrid>\n";
-    fichier << "    <Piece NumberOfPoints=\"" << nb << "\" NumberOfCells=\"0\">\n";
+    // Compter le nombre total de particules
+    size_t totalParticles = 0;
+    for (const auto& cellule : grille) {
+        totalParticles += cellule.particules.size();
+    }
 
-    //positions des particules
+    // En-tête VTK
+    fichier << std::fixed << std::setprecision(6);
+    fichier << "<VTKFile type=\"UnstructuredGrid\" version=\"1.0\" byte_order=\"LittleEndian\">\n";
+    fichier << "  <UnstructuredGrid>\n";
+    fichier << "    <Piece NumberOfPoints=\"" << totalParticles << "\" NumberOfCells=\"0\">\n";
+
+    // Positions
     fichier << "      <Points>\n";
-    fichier << "        <DataArray name=\"Position\" type=\"Float32\" NumberOfComponents=\"3\" format=\"binary\">\n";
+    fichier << "        <DataArray type=\"Float32\" Name=\"Position\" NumberOfComponents=\"3\" format=\"ascii\">\n";
     for (const auto& cellule : grille) {
         for (const auto& particule : cellule.particules) {
             Vecteur pos = particule.getPosition();
-            fichier << std::fixed << std::setprecision(6) << pos[0] << " " << pos[1] << " " << pos[2] << " ";
+            fichier << pos[0] << " " << pos[1] << " " << pos[2] << "\n";
         }
     }
-    fichier << "\n";
     fichier << "        </DataArray>\n";
     fichier << "      </Points>\n";
 
-    //PointData (vitesses et masses des particules)
-    fichier << "      <PointData Vectors=\"vector\">\n";
-    fichier << "        <DataArray type=\"Float32\" Name=\"Velocity\" NumberOfComponents=\"3\" format=\"binary\">\n";
+    // Données (Vitesse + Masse)
+    fichier << "      <PointData Vectors=\"Velocity\">\n";
+    
+    // Vitesse
+    fichier << "        <DataArray type=\"Float32\" Name=\"Velocity\" NumberOfComponents=\"3\" format=\"ascii\">\n";
     for (const auto& cellule : grille) {
         for (const auto& particule : cellule.particules) {
             Vecteur vitesse = particule.getVitesse();
-            fichier << fixed << setprecision(6) << vitesse[0] << " " << vitesse[1] << " " << vitesse[2] << " ";
+            fichier << vitesse[0] << " " << vitesse[1] << " " << vitesse[2] << "\n";
         }
     }
-    fichier << "\n";
     fichier << "        </DataArray>\n";
 
-    fichier << "        <DataArray type=\"Float32\" Name=\"Masse\" format=\"binary\">\n";
+    // Masse
+    fichier << "        <DataArray type=\"Float32\" Name=\"Masse\" format=\"ascii\">\n";
     for (const auto& cellule : grille) {
         for (const auto& particule : cellule.particules) {
-            fichier << fixed << setprecision(6) << particule.getMasse() << " ";
+            fichier << particule.getMasse() << "\n";
         }
     }
-    fichier << "\n";
     fichier << "        </DataArray>\n";
     fichier << "      </PointData>\n";
 
-   
+    // Cellules (vide)
     fichier << "      <Cells>\n";
-    fichier << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"binary\">\n";
-    fichier << "        </DataArray>\n";
-    fichier << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"binary\">\n";
-    fichier << "        </DataArray>\n";
-    fichier << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"binary\">\n";
-    fichier << "        </DataArray>\n";
+    fichier << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\"/>\n";
+    fichier << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\"/>\n";
+    fichier << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\"/>\n";
     fichier << "      </Cells>\n";
 
-    //Fermeture du fichier
+    // Fermeture
     fichier << "    </Piece>\n";
     fichier << "  </UnstructuredGrid>\n";
     fichier << "</VTKFile>\n";
 
     fichier.close();
-    std::cout << "Fichier VTK sauvegardé : " << cheminComplet << std::endl;
+    cout << "Fichier VTK généré avec succès : " << cheminComplet << endl;
 }
+
