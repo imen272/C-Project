@@ -21,7 +21,11 @@ cmake .. && make
 ```bash
 ctest --output-on-failure
 ```
+## Lancer Executable
+```bash
+./demo/demo_univers
 
+```
 ## 📊 Visualisation (ParaView)
 ```bash
 paraview output/particules_t_*.vtu
