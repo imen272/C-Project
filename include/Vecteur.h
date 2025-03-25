@@ -17,6 +17,7 @@ class Vecteur {
         Vecteur operator*(double scalar) const;
         Vecteur operator/(double scalar) const;
         Vecteur& operator+=(const Vecteur& v);
+        bool operator==(const Vecteur& other) const;
         double norm() const ;
         float operator[](int index) const;
         float& operator[](int index) ;

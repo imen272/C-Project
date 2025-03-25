@@ -1,6 +1,6 @@
-# 📚 Documentation du Projet C++
+# Documentation du Projet C++
 
-## 🛠 Installation
+##  Installation
 ```bash
 # Linux
 sudo apt install git cmake g++
@@ -9,7 +9,7 @@ sudo apt install git cmake g++
 brew install git cmake
 ```
 
-## 🚀 Lancer le projet
+##  Lancer le projet
 ```bash
 git clone https://github.com/imen272/C-Project.git
 cd C-Project
@@ -17,7 +17,7 @@ mkdir -p build && cd build
 cmake .. && make
 ```
 
-## 🔍 Tests
+## Tests
 ```bash
 ctest --output-on-failure
 ```
@@ -31,7 +31,7 @@ ctest --output-on-failure
 paraview output/particules_t_*.vtu
 ```
 
-## 🆘 Aide
+## Aide
 | Commande | Action |
 |----------|--------|
 | `make clean` | Nettoie la compilation |

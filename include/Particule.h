@@ -18,14 +18,14 @@ class Particule{
     public:
         Particule();
         Particule(double id);
-        Particule(double id,Vecteur& p);
-        Particule(double id,double m,Vecteur& p);
+        Particule(double id,const Vecteur& p);
+        Particule(double id,double m,const Vecteur& p);
         //Particule(double id,const Vecteur v,const Vecteur f, const Vecteur p, const string t, double m);
         Particule(double id,Vecteur p, Vecteur v,string t, double m);      
         void afficher();
-        void updateVitesse(double& dt);
+        void updateVitesse(double dt);
         void updatePosition(double dt);
-        void setForce(Vecteur& f);
+        void setForce(const Vecteur& f);
         void setVitesse(const Vecteur& v);
         void setPosition(Vecteur& p);
         double getIdentifiant();
@@ -35,7 +35,7 @@ class Particule{
         const Vecteur& getVitesse() const;
         Vecteur getOldForce() const;
         Vecteur getForce() const;
-        Vecteur forceInteractionGravitationelle(Particule& p);
+        Vecteur forceInteractionGravitationelle(const Particule& p);
         Vecteur forceInteraction(Particule& p,double sigma, double epsilon);
         double potentielInteraction(Particule& p,double rcut,double sigma, double epsilon);
 };

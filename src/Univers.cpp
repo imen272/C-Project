@@ -15,7 +15,7 @@ Univers::Univers(int nb, int dimension, vector<double> ld, double rcut)
     : nb(nb), dimension(dimension), ld(ld), rcut(rcut) {
     ncd.resize(dimension);
     int totalCells = 1;
-
+    DEBUG_COUT("Début simulation avec " << grille.size() << " cellules");
     // Calcul des ncd et taille totale de la grille
     for (int i = 0; i < dimension; i++) {
         ncd[i] = static_cast<int>(ld[i] / rcut);
@@ -103,7 +103,7 @@ Univers::Univers(int nb1, int nb2, int dimension, vector<double> ld, double rcut
             particule.setVitesse(Vecteur(0.0, 10.0, 0.0)); // Vitesse initiale du carré
             particule.afficher();
 
-            // Determine the cell index and add the particle to the grid
+            // Determine the cell index et ajoute la particule à la grille
             vector<int> cellCoords(dimension);
             for (int d = 0; d < dimension; d++) {
                 cellCoords[d] = static_cast<int>(position[d] / rcut);
@@ -283,35 +283,66 @@ double Univers::potentielLennardJones(double sigma, double epsilon){
 
 
 
-void Univers::forceParticule(double sigma, double epsilon){
+void Univers::forceParticule(double sigma, double epsilon) {
+    if (grille.empty()) return;
+    // Réinitialisation
+    Vecteur forceNulle(0.0, 0.0, 0.0);
+    for (auto& cellule : grille) {
+        for (auto& p : cellule.particules) {
+            p.setForce(forceNulle); // Passage par référence
+        }
+    }
+
+    //Calcul des forces
     for (size_t i = 0; i < grille.size(); ++i) {
-        for (auto& p:grille[i].particules){
-            Vecteur force;
-            for (auto& indexVoisin:grille[i].voisins) {
-                //DEBUG_COUT( "voisin est " << indexVoisin << endl);
-                Vecteur v=getCentreCellule(indexVoisin)-p.getPosition();
-                //DEBUG_COUT( "Position de la particule : (" << p.getPosition()[0] << ", " << p.getPosition()[1] << ")" << endl);
-                //DEBUG_COUT( "centre du voisin est (" << v[0] << "," << v[1] << "," << v[2] << endl);
-                if (v.norm()<rcut){
-                    for (auto& p2:grille[indexVoisin].particules) { 
-                        if (&p != &p2) {
-                            force+=p.forceInteraction(p2,sigma,epsilon);
-                            force+=p.forceInteractionGravitationelle(p2);
+        auto& cellule_i = grille[i];
+        
+        // Interactions intra-cellule
+        for (size_t p1 = 0; p1 < cellule_i.particules.size(); ++p1) {
+            for (size_t p2 = p1 + 1; p2 < cellule_i.particules.size(); ++p2) {
+                Vecteur f = cellule_i.particules[p1].forceInteraction(cellule_i.particules[p2], sigma, epsilon);
+                f += cellule_i.particules[p1].forceInteractionGravitationelle(cellule_i.particules[p2]);
+
+                // Mise à jour symétrique
+                Vecteur newForceP1 = cellule_i.particules[p1].getForce() + f;
+                Vecteur newForceP2 = cellule_i.particules[p2].getForce() - f;
+                cellule_i.particules[p1].setForce(newForceP1); 
+                cellule_i.particules[p2].setForce(newForceP2); 
+            }
+        }
+
+        // Interactions inter-cellules
+        for (auto& p : cellule_i.particules) {
+            for (int j : cellule_i.voisins) {
+                if (j <= static_cast<int>(i)) continue; 
+
+                Vecteur centreVoisin = getCentreCellule(j);
+                if ((centreVoisin - p.getPosition()).norm() < rcut) {
+                    for (auto& p_voisin : grille[j].particules) {
+                        Vecteur delta = p_voisin.getPosition() - p.getPosition();
+                        if (delta.norm() < rcut) {
+                            Vecteur f = p.forceInteraction(p_voisin, sigma, epsilon);
+                            f += p.forceInteractionGravitationelle(p_voisin);
+
+                            //Mettre à jour 
+                            Vecteur newForceP = p.getForce() + f;
+                            Vecteur newForceVoisin = p_voisin.getForce() - f;
+                            p.setForce(newForceP); 
+                            p_voisin.setForce(newForceVoisin);
                         }
                     }
                 }
             }
-            p.setForce(force);
-            //DEBUG_COUT( "force de la particule est (" << force[0] << "," << force[1] << "," << force[2] <<")"<< endl);
         }
     }
-}; //...
+}
 
 
 void Univers::mettreAJourPositionDansLimites(Particule& particule) {
     Vecteur pos = particule.getPosition();
 
     for (size_t d = 0; d < dimension; d++) {  
+        if (ld[d] <= 0) continue;
         pos[d] = fmod(pos[d], ld[d]); 
         if (pos[d] < 0) pos[d] += ld[d]; 
     }
@@ -324,32 +355,33 @@ void Univers::mettreAJourPositionDansLimites(Particule& particule) {
 void Univers::miseAJourCellules() {
 
     vector<Particule> allParticles;
-    /*for (auto& cellule : grille) {
-        DEBUG_COUT( "cell has " << cellule.getSize() << endl);
-   }*/
 
-    for (auto& cellule : grille) {
-        for (auto& p : cellule.particules) {
-            allParticles.push_back(p); 
-        }
-        cellule.particules.clear();
+   for (auto& cellule : grille) {
+    allParticles.insert(allParticles.end(), cellule.particules.begin(), cellule.particules.end());
+    cellule.particules.clear();
     }
+
     //Reassign les particules à leurs nouvelles cellules
     for (auto& p : allParticles) {
         vector<int> newCellCoords(dimension);
+        bool valid = true;
         
-        // Calculer les indices de la cellule pour chaque dimension
         for (int d = 0; d < dimension; d++) {
-            newCellCoords[d] = static_cast<int>(floor(p.getPosition()[d] / rcut));
+            double pos = p.getPosition()[d];
+            if (pos < 0 || pos >= ld[d]) {  //validation des limites
+                valid = false;
+                break;
+            }
+            newCellCoords[d] = static_cast<int>(pos / rcut);
         }
 
-        int cellIndex = getIndice(newCellCoords);
-        grille[cellIndex].ajouterParticule(p);
-    
+        if (valid) {
+            int cellIndex = getIndice(newCellCoords);
+            if (cellIndex >= 0 && cellIndex < grille.size()) {
+                grille[cellIndex].ajouterParticule(p);
+            }
+        }
     }
-    /*for (auto& cellule : grille) {
-         DEBUG_COUT( "cell has " << cellule.getSize() << endl);
-    }*/
     initialiserCellulesVoisines();
 };
 

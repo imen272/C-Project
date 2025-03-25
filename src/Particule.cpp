@@ -13,13 +13,13 @@
 
 Particule::Particule() : identifiant(0), masse(1), type("default"),position(Vecteur()), vitesse(Vecteur()), force(Vecteur()),oldForce(Vecteur()) {};
 
-Particule::Particule(double id,Vecteur& p):position(p), vitesse(Vecteur(1,0,0)), force(Vecteur()),oldForce({Vecteur()}){
+Particule::Particule(double id,const Vecteur& p):position(p), vitesse(Vecteur(1,0,0)), force(Vecteur()),oldForce({Vecteur()}){
     this->identifiant=id;
     masse=1;
     type="default";
 }; //masse=1 par defaut!!!!
 
-Particule::Particule(double id,double m,Vecteur& p):position(p), masse(m), vitesse(Vecteur(1,0,0)), force(Vecteur()),oldForce({Vecteur()}){
+Particule::Particule(double id,double m,const Vecteur& p):position(p), masse(m), vitesse(Vecteur(1,0,0)), force(Vecteur()),oldForce({Vecteur()}){
     this->identifiant=id;
     type="default";
 };
@@ -44,7 +44,7 @@ void Particule::updatePosition(double dt){
        
 };
 
-void Particule::updateVitesse(double& dt){
+void Particule::updateVitesse(double dt){
     /*vitesse.x=vitesse.x+ dt * 0.5/masse * (force.x+oldForce.x);
     vitesse.y=vitesse.y+ dt * 0.5/masse * (force.y+oldForce.y);
     vitesse.z=vitesse.z+ dt * 0.5/masse * (force.z+oldForce.z);*/
@@ -60,7 +60,7 @@ void Particule::setVitesse(const Vecteur& v){
 
 };
 
-void Particule::setForce(Vecteur& f){
+void Particule::setForce(const Vecteur& f){
     oldForce=force;
     force=f;
     //const to not allow modification? optional
@@ -99,14 +99,12 @@ void Particule::afficher() {
 	       << " de vitesse [" << this->vitesse.x << "," << this->vitesse.y << "," << this->vitesse.z << "]" <<endl);
 };
 
-Vecteur Particule::forceInteractionGravitationelle(Particule& p){
+Vecteur Particule::forceInteractionGravitationelle(const Particule& p){
     const double G = 6.674e-11; // Constante gravitationnelle
-    Vecteur r=this->position-p.getPosition();
+    Vecteur r=p.getPosition()-this->position;
     double d=r.norm();
     
-    if (d == 0) {
-        return Vecteur();
-    }
+    if (d < 1e-10) return Vecteur();
 
     double module= G * this->masse * p.getMasse() / (d*d*d);
     return r*module;
@@ -114,11 +112,12 @@ Vecteur Particule::forceInteractionGravitationelle(Particule& p){
 
 
 Vecteur Particule::forceInteraction(Particule& p,double sigma, double epsilon){
-    Vecteur r=this->position-p.getPosition();
+    Vecteur r=p.getPosition()-this->position;
     double d=r.norm();
     if (d==0){
         return Vecteur();
     }
+    if (d < 1e-10) return Vecteur();
     double u = pow(sigma/d,6);
     double module= 24* epsilon /(d*d) * u* (1-2*u);
     return r*module;
@@ -128,7 +127,7 @@ Vecteur Particule::forceInteraction(Particule& p,double sigma, double epsilon){
 
 
 double Particule::potentielInteraction(Particule& p,double rcut,double sigma, double epsilon){
-    Vecteur r=this->position-p.getPosition();
+    Vecteur r=p.getPosition()-this->position;
     double d=r.norm();
     if (d<=rcut && d!= 0){
         double u = pow(sigma/d,6);
@@ -139,7 +138,7 @@ double Particule::potentielInteraction(Particule& p,double rcut,double sigma, do
 };
 
 
-/*void forceParticule(vector<Particule>& listParticule){
+/*void forceParticuleSansUnivers(vector<Particule>& listParticule){
     //first method: non optimisée
     for (auto& p:listParticule){
         Vecteur force;
@@ -168,10 +167,10 @@ double Particule::potentielInteraction(Particule& p,double rcut,double sigma, do
             listParticule[j].setForce(newForce2);
         }
     }
-}
+}*/
     
 
-int main() {
+/*int main() {
     random_device rd;
     mt19937 mt(rd());
     uniform_real_distribution<double> dist(0.0, 1.0);

@@ -24,6 +24,10 @@ Vecteur Vecteur::operator/(double scalar) const {
     return Vecteur(floor(x / scalar), floor(y / scalar), floor(z / scalar)); 
 }
 
+bool Vecteur::operator==(const Vecteur& other) const {
+    return x == other.x && y == other.y && z == other.z;
+}
+
 double Vecteur::norm() const {
     return sqrt(x*x + y*y + z*z); 
 }

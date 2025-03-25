@@ -1,14 +1,11 @@
 #include "Univers.h"
 
 int main() {
-    // Create the universe
+    //the universe
     Univers univers(1600, 6400, 2, {250.0, 40.0}, 2.5 * 1.0, 1.0);
 
-    // Run the simulation until t = 19.5
+    //Run the simulation until t = 19.5
     univers.etatUnivers(19.5, 1.0, 5.0,19.5);
-
-    // Sauvegarder les données dans un fichier VTK
-    // univers.sauvegarderVTK("particules.vtu");
     
     return 0;
 }
