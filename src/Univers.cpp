@@ -389,7 +389,7 @@ void Univers::miseAJourCellules() {
 
 void Univers::etatUnivers(double dt,double sigma, double epsilon,double t_end){
     double t = 0.0;
-    int pas=0;
+    int pas=1;
     forceParticule(sigma,epsilon);
     /*for (auto &p : listParticule) {
         p.afficher();

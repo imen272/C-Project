@@ -49,6 +49,15 @@ void Particule::updateVitesse(double dt){
     vitesse.y=vitesse.y+ dt * 0.5/masse * (force.y+oldForce.y);
     vitesse.z=vitesse.z+ dt * 0.5/masse * (force.z+oldForce.z);*/
     vitesse=vitesse+(force+oldForce)*(0.5*dt/masse);
+    /*for (int i=0;i<3;i++){
+        if (vitesse[i]>1000){
+            vitesse[i]=1000;
+        }
+        if (vitesse[i]<-1000){
+            vitesse[i]=-1000;
+        }
+    }*/
+
 };
 
 void Particule::setPosition(Vecteur& p){
@@ -56,6 +65,14 @@ void Particule::setPosition(Vecteur& p){
 };
 
 void Particule::setVitesse(const Vecteur& v){
+    /*for (int i=0;i<3;i++){
+        if (vitesse[i]>1000){
+            vitesse[i]=1000;
+        }
+        if (vitesse[i]<-1000){
+            vitesse[i]=-1000;
+        }
+    }*/
     vitesse=v;
 
 };
@@ -114,12 +131,14 @@ Vecteur Particule::forceInteractionGravitationelle(const Particule& p){
 Vecteur Particule::forceInteraction(Particule& p,double sigma, double epsilon){
     Vecteur r=p.getPosition()-this->position;
     double d=r.norm();
-    if (d==0){
-        return Vecteur();
-    }
+
     if (d < 1e-10) return Vecteur();
+
     double u = pow(sigma/d,6);
-    double module= 24* epsilon /(d*d) * u* (1-2*u);
+    double denom=(d*d) * u* (1-2*u);
+    if (denom < 1e-10) return Vecteur();
+
+    double module= 24* epsilon/denom;
     return r*module;
 
 
@@ -136,6 +155,7 @@ double Particule::potentielInteraction(Particule& p,double rcut,double sigma, do
     return 0.0;
     
 };
+
 
 
 /*void forceParticuleSansUnivers(vector<Particule>& listParticule){
@@ -186,30 +206,25 @@ double Particule::potentielInteraction(Particule& p,double rcut,double sigma, do
     double t = 0.0;
     double t_end = 468.5;
     double dt= 0.015;
-    forceParticule(particles);
+    forceParticuleSansUnivers(particles);
 
     for (auto &p : particles) {
         p.afficher();
     };
 
     while (t < t_end) {
-        t+= dt;
         for (auto &p : particles) {
             p.updatePosition(dt);
         };
-        forceParticule(particles);
+        forceParticuleSansUnivers(particles);
         for (auto &p : particles) {
             p.updateVitesse(dt); 
+            cout << "instant : " << t << endl ;
+            p.afficher();
         };
         
+        t+= dt;
     };
-
-    for (auto &p : particles) {
-        p.afficher();
-    };
-
-    return 0;
-
 }*/
 
 
